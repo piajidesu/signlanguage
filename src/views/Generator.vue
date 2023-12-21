@@ -3,10 +3,13 @@ import { mapState } from "vuex";
 import axios from 'axios';
 const MediaRecorder = window.MediaRecorder;
 const URL = window.URL || window.webkitURL;
+import { dbconnect } from "@/history/dbconnect";
 
 export default {
 	data() {
 		return {
+      dbConnect: new dbconnect(),
+      collectImgURL: '../assets/收藏.jpg',
 			isPlaying: false, // 标识视频是否正在播放
 			videoSrc: "../assets/video1.mp4", // 视频文件路径
 			mediaRecorder: null, // 媒体录制对象
@@ -22,9 +25,17 @@ export default {
 			tmp_txt:'',
       searchQuery: '',
       searchHistory: [], // 存储搜索记录的数组
+      HistoryShowed: [],//展示出来的历史记录
       searchHistory_collected: [],
+      collectedQuery: [],
       res: '无',
       isGetting: false,
+      dialogVisible: false,
+      CollectVisible: false,
+      isHovered: false,
+      isManage: false,
+      favorites: [],
+      collectionShowed: [],
 		};
 	},
 	computed: {
@@ -127,7 +138,7 @@ export default {
       this.saveSearchQuery();
       this.isGetting = true;
 			if(this.tmp_txt.length>0) this.pending_gen_text = this.tmp_txt
-      if(this.tmp_txt.length==0){
+      if(this.tmp_txt.length==0 || this.tmp_txt == ""){
         alert("文本不能为空哦");
         return;
       }
@@ -152,6 +163,7 @@ export default {
 			.then(async(blob)=>{
 				this.isPlaying = true;
 				let videoUrl = URL.createObjectURL(blob)
+        console.log(videoUrl);
         this.isGetting = false;
 				// await new Promise(resolve=>{setTimeout(resolve,100)})
 				if (this.$refs.videoPlayer) {
@@ -167,9 +179,6 @@ export default {
 
     isExisit(){
       for(var i = 0; i < this.searchHistory.length; i++){
-        // console.log("aasdsadsad");
-        // console.log(this.tmp_txt);
-        // console.log(this.searchHistory[i].search_query);
         if(this.searchHistory[i].search_query == this.tmp_txt)
           return true;
       }
@@ -181,6 +190,14 @@ export default {
 
     },
 
+    isCollectExisit(){
+      for(var i = 0; i < this.collectedQuery.length; i++){
+        if(this.collectedQuery[i].collect_query == this.tmp_txt)
+          return true;
+      }
+      return false;
+
+    },
 
     saveSearchQuery() {
       if(this.isExisit()){
@@ -213,6 +230,32 @@ export default {
             console.error('保存搜索记录时出现错误:', error);
           });
       this.getSearchQuery();
+    },
+
+    deletCollectQuery(query){
+      const data = {
+        query: query,
+      };
+      fetch('/api/deleteCollect', {
+        method: 'POST',
+        //mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+          .then(response => {
+            if (response.ok) {
+              console.log('已删除');
+            } else {
+              console.error('删除时出现错误');
+            }
+          })
+          .catch(error => {
+            console.error('删除时出现错误:', error);
+          });
+      this.getCollectedQuery();
+      console.log(this.collectedQuery)
     },
 
     deletSearchQuery(query) {
@@ -272,6 +315,10 @@ export default {
 
     collectSearchQuery(query) {
       // console.log("hhh");
+      if(this.isCollectExisit(query) && query.length>0){
+       console.log("已存在");
+       return;
+      }
       const data = {
         query: query,
       };
@@ -293,11 +340,13 @@ export default {
           .catch(error => {
             console.error('收藏时出现错误:', error);
           });
-      this.getSearchQuery();
-      console.log(this.searchHistory)
+      this.getCollectedQuery();
+      //console.log(this.searchHistory)
+
     },
 
     getSearchQuery() {
+      this.searchHistory = [];
       this.searchHistory_collected = [];
       this.searchHistory = [];
       fetch('/api/get_history', {
@@ -308,19 +357,45 @@ export default {
         },
 
         body: JSON.stringify({ query: "1"})
-      }).then((res)=>{
-        return res.json()
-      }).then((res)=>{
-        this.res = res;
-        const keyValuePairs = Object.entries(res);
-        //this.searchHistory = keyValuePairs;
-        this.set_searchHistory(keyValuePairs);
-        //console.log(keyValuePairs);
-      }).catch(error => {
-        console.error('获取出现错误:', error);
-      });
+      }).then(response => response.json())
+          .then(data => {
+            console.log(data);
+            this.searchHistory.push(data);
+            this.searchHistory = this.searchHistory[0];
+            this.set_HistoryShowed();
+            console.log(this.searchHistory)
+            console.log("获取成功");
+          })
+          .catch(error => {
+            console.error('获取失败:', error);
+          });
 
     },
+    //获取收藏
+    getCollectedQuery() {
+      this.collectedQuery = [];
+      fetch('/api/getCollect', {
+        method: 'POST',
+        //mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query: "1"})
+      }).then(response => response.json())
+          .then(data => {
+            console.log(data);
+            this.collectedQuery.push(data);
+            this.collectedQuery = this.collectedQuery[0];
+            console.log(this.collectedQuery)
+            console.log("获取成功");
+          })
+          .catch(error => {
+            console.error('获取失败:', error);
+          });
+
+    },
+
+
 
     generateUUID() {
       // 生成唯一标识符
@@ -352,20 +427,35 @@ export default {
       return null;
     },
 
-    set_searchHistory(KeyValuePairs){
-        for(var i = 0; i < KeyValuePairs.length ; i++){
-          if(!KeyValuePairs[i][1].is_collected)
-            this.searchHistory.push(KeyValuePairs[i][1]);
-          else
-            this.searchHistory_collected.push(KeyValuePairs[i][1]);
-        }
-        //console.log(this.searchHistory);
-        //console.log(this.searchHistory_collected);
-    }
+    set_HistoryShowed(KeyValuePairs){
+      this.HistoryShowed = [];
+      for(var i = this.searchHistory.length - 1; i >= Math.max(this.searchHistory.length - 4,0) ; i--) {
+        this.HistoryShowed.push(this.searchHistory[i]);
+      }
+    },
+    openDialog() {
+      console.log("打开");
+      this.dialogVisible = true;
+    },
+    closeDialog() {
+      this.dialogVisible = false;
+    },
+
+    openCollect() {
+      console.log("打开");
+      this.CollectVisible = true;
+    },
+    closeCollect() {
+      this.CollectVisible = false;
+    },
 
   },
 
+
+
   created() {
+    this.dBconnect = new dbconnect();
+
     var userId = this.getCookie('userId');
     if (!userId) {
       userId = this.generateUUID();
@@ -375,13 +465,10 @@ export default {
       console.log('Existing user ID:', userId);
     }
     this.getSearchQuery();
+    this.getCollectedQuery();
+    this.dBconnect.getFavorites().then(result => {this.favorites.push(result);this.favorites = this.favorites[0][0];console.log(this.favorites)})
   }
-
-
 };
-
-
-
 </script>
 
 <template onload="getSearchQuery">
@@ -519,6 +606,19 @@ export default {
 						<div style="text-align: left; padding: 10px 20px" v-else>
 							{{ pending_gen_text }}
 						</div>
+            <div class="op-favor-container">
+              <a href="javascript:void(0);"
+                 class=""
+                 data-hover-tip-text="添加到收藏夹"
+                 title="添加到收藏夹"
+                 style="display: inline"
+              >
+              <span class="icon-favo" @click="collectSearchQuery(tmp_txt)">
+                收藏
+              </span>
+              </a>
+            </div>
+
 					</div>
 				</div>
 
@@ -610,59 +710,85 @@ export default {
 			</div>
 		</div>
 	</div>
+  <div class="history-warp" id="history-warp" style="display: block">
+    <div class="history-container">
+      <span class="history-new-item" @click="()=>{
+                                                  tmp_txt = history.search_query;
+                                                  is_focus = true;
+                                                   }"
+            v-for="history in HistoryShowed">{{history.search_query}}</span>
+      <span class="history-btn" @click="openDialog"><i class="history-btn-icon">"历史记录"</i></span>
+      <span class="history-btn" @click="openCollect"><i class="history-btn-icon">"收藏夹"</i></span>
+    </div>
+    <div>
 
+    </div>
+  </div>
 
-  <el-form-item  style="height: 20%;margin-top: max(3%,40px);margin-left: 10%;text-align: center;min-width: 1200px"  prop="searchHistory" label-width="0">
-    <el-select
-        style="width: 80%"
-        placeholder="历史记录"
+  <div>
+    <!-- 对话框 -->
+    <el-dialog
+        v-model="dialogVisible"
+        title="搜索记录"
+        @close="closeDialog"
+        style="height: 50%"
+        @closed="() => {isHovered = false;isManage = false}"
+
     >
-      <el-option
-                 v-for="item in searchHistory_collected"
-                 :key="item.id"
-                 :label="item.search_query"
-                 :value="item.id"
-      >
-        <p
-            style="float: left;width: 80%;margin-top: 0px;position: absolute;color: black"
-            @click="()=>{
-              tmp_txt = item.search_query;
-              setFocus();
-              }"
-        >
-          {{item.search_query}}
-        </p>
-        <span style="float: right;width: 10%;position: absolute;margin-left: 90%;text-align: center;color: black" @click="deletSearchQuery(item.search_query)">删除</span>
-        <span style="float: right;width: 10%;position: absolute;margin-left: 80%;text-align: center;color: black" @click="collectSearchQuery(item.search_query)">已收藏</span>
-      </el-option>
-      <el-option style="
-      color: white;
-      border-bottom: solid;
-      "
-      v-for="item in searchHistory"
-      :key="item.id"
-      :label="item.search_query"
-      :value="item.id"
-      >
-        <p
-            style="float: left;width: 80%;margin-top: 0px;position: absolute;color: black"
-            @click="()=>{
-              tmp_txt = item.search_query;
-              setFocus();
-              }"
-        >
-          {{item.search_query}}
-        </p>
-        <span style="float: right;width: 10%;position: absolute;margin-left: 90%;text-align: center;color: black" @click="deletSearchQuery(item.search_query)">删除</span>
-        <span style="float: right;width: 10%;position: absolute;margin-left: 80%;text-align: center;color: black" @click="collectSearchQuery(item.search_query)">收藏</span>
-      </el-option>
-      <el-option style="text-align: center" value="0" @click="deletAllSearchQuery" >清除全部</el-option>
-    </el-select>
-  </el-form-item>
+      <div class="history-warp-dialog" id="history-warp" style="display: flex">
+        <div>
+           <span class="history-modal-item"
+                 @click="()=>{
+                              if(!isManage)
+                              {tmp_txt = history.search_query;
+                              is_focus = true;
+                              closeDialog();}
+                               }"
+            v-for="history in searchHistory">
+             <span v-show="isHovered" class="cross" @click="deletSearchQuery(history.search_query)">X</span>
+             {{ history.search_query }}
 
+           </span>
+        </div>
+      </div>
+      <el-button class = "history-manage-btn" @click="()=>{isHovered = !isHovered;isManage = !isManage}">
+        管理
+      </el-button>
+      <el-button class = "history-clear-btn" @click="()=>{deletAllSearchQuery()}">
+        清空
+      </el-button>
+    </el-dialog>
+  </div>
+  <div>
+    <el-dialog
+        v-model="CollectVisible"
+        title="收藏夹"
+        @close="closeCollect"
+        style="height: 50%"
+        @closed="() => {isHovered = false;isManage = false}"
 
+    >
+      <div class="history-warp-dialog" id="history-warp" style="display: flex">
+        <div>
+           <span class="history-modal-item"
+                 @click="()=>{
+                              if(!isManage)
+                              {tmp_txt = collection.collect_query;
+                              is_focus = true;
+                              closeDialog();}
+                               }"
+                 v-for="collection in collectedQuery">
+             <span v-show="isHovered" class="cross" @click="deletCollectQuery(collection.collect_query)">X</span>
+             {{ collection.collect_query }}
 
-
+           </span>
+        </div>
+      </div>
+      <el-button class = "history-manage-btn" @click="()=>{isHovered = !isHovered;isManage = !isManage}">
+        管理
+      </el-button>
+    </el-dialog>
+  </div>
 
 </template>
 
@@ -761,5 +887,166 @@ export default {
 	transform: translate(-50%, -50%);
 	font-size: 30px;
 	color: white;
+}
+.history-container{
+  margin-left: 5%;
+  display: flex;
+  width: 100%;
+}
+.history-new-item{
+  position: relative;
+  background: #e7eaf5;
+  border-radius: 10px;
+  margin-left: 10px;
+  box-sizing: border-box;
+  color: #181818;
+  cursor: pointer;
+  font-family: PingFang SC;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  height: 28px;
+  line-height: 28px;
+  max-width: 10%;
+  overflow: hidden;
+  padding: 0 10px;
+  text-overflow: ellipsis;
+  transition: all .16s;
+  white-space: nowrap;
+}
+.history-new-item:hover{
+  background-color: #999999;
+
+}
+.history-modal-item {
+  background: #f2f3fa;
+  border-radius: 10px;
+  color: #181818;
+  box-sizing: border-box;
+  cursor: pointer;
+  float: left;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  max-width: 100%;
+  padding: 8px 14px;
+  position: relative;
+}
+.history-modal-item:hover{
+  background-color: #999999;
+
+}
+.history-wrap {
+  color: #999;
+  display: none;
+  font-size: 14px;
+  margin-top: 20px;
+}
+.history-wrap-dialog {
+  color: #999;
+  display: none;
+  font-size: 14px;
+  margin-top: 20px;
+  height: 500px;
+}
+.history-btn {
+  margin-left: 1%;
+  align-items: center;
+  background: #e7eaf5;
+  border-radius: 10px;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  font-family: PingFang SC;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  justify-content: center;
+  padding: 5px 0;
+  width: 100px;
+}
+.history-manage-btn{
+  position: absolute;
+  right: 1%;
+  bottom: 1%;
+}
+.history-clear-btn{
+  position: absolute;
+  right: 11%;
+  bottom: 1%;
+}
+.cross {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  background-color: #ccc;
+  color: #fff;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 20px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.3s ease;
+}
+
+/* 鼠标悬停时叉的背景颜色变深 */
+.cross:hover {
+  background-color: #999;
+}
+
+.op-favor-container {
+  align-items: center;
+  display: flex;
+  float: right;
+  height: 30px;
+  justify-content: center;
+  margin-right: 9px;
+  overflow: visible;
+  position: relative;
+  width: 30px;
+}
+.icon-favo {
+  background-position: 0 -133px;
+  background-repeat: no-repeat;
+  height: 20px;
+  width: 20px;
+  margin-left: -4px;
+  margin-top: 7px;
+  width: 14px;
+}
+.collection-bar-container{
+  width: 280px;
+  background-color: white;
+}
+.collection-bar-inner {
+  width: 280px;
+  height: 100%;
+  margin: 0 20px;
+  position: relative;
+}
+.collection-title {
+  width: 280px;
+  border-bottom: 1px solid #d8d8d8;
+  color: #333;
+  font-size: 16px;
+  height: 59px;
+  line-height: 58px;
+  padding-left: 4px;
+}
+.all-group-container {
+  font-size: 14px;
+  margin-top: 2px;
+  width: 280px;
+}
+.coll-group {
+  color: #333;
+  height: 34px;
+  width: 200px;
+  line-height: 26px;
+  padding-top: 4px;
+  margin-left: 25px;
 }
 </style>

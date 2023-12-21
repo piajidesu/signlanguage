@@ -20,21 +20,21 @@
 					@click="switchBackgroundImage"
 					:style="{ color: !isLight ? 'white' : 'black' }"
 				>
-					Theme
+					主题
 				</button>
 				<button
 					class="text-button"
 					@click="gohome"
 					:style="{ color: !isLight ? 'white' : 'black' }"
 				>
-					Home
+					主页
 				</button>
 				<button
 					class="text-button"
 					:style="{ color: !isLight ? 'white' : 'black' }"
 					@click="gowhere('license')"
 				>
-					License
+					证书
 				</button>
 			</div>
 		</div>

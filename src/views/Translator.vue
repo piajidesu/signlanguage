@@ -60,7 +60,7 @@ export default {
 				// formData.append("mp4File", blob, "recorded_video.mp4");
 				this.formdata = new FormData();
 				this.formdata.append("mp4File", blob, "recorded_video.mp4");
-
+        console.log(this.formdata);
         		// formData.append('mp4File', file);
 
 
@@ -121,7 +121,7 @@ export default {
 			}
 			}, 150);
 			})
-			
+
 		},
 
 		blobFromSpeechSynthesis(utterance) {

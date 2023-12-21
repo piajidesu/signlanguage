@@ -77,16 +77,15 @@ export default {
 	background: none;
 	border: none;
 	box-sizing: border-box;
-	margin: 0 15px;
-	padding: 0px 30px;
+  padding: 0 30px;
 	border-radius: 16px;
 	/* font: inherit; */
 	cursor: pointer;
 	outline: inherit;
 	font-weight: bold;
 	font-size: 25px;
-	margin-right: 20px;
-	height: 33px;
+  margin: 0 20px 0 15px;
+  height: 33px;
 	width: 162px;
 	line-height: 14.5px;
 	transform: scale(0.95);

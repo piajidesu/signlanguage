@@ -43,6 +43,18 @@ export default defineConfig({
         target:'http://127.0.0.1:3301',
         changeOrigin:true,
       },
+      '/api/getCollect':{
+        target:'http://127.0.0.1:3301',
+        changeOrigin:true,
+      },
+      '/api/getFavorites':{
+        target:'http://127.0.0.1:3301',
+        changeOrigin:true,
+      },
+      '/api/getCollectionByFavorite':{
+        target:'http://127.0.0.1:3301',
+        changeOrigin:true,
+      },
     }
   }
 })

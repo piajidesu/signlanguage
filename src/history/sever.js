@@ -69,6 +69,55 @@ app.post('/api/get_history',(req,res) => {
     })
 })
 
+app.post('/api/getCollect',(req,res) => {
+    let cookie = req.cookies.userId;
+    //查询未收藏
+    const sql = 'SELECT collection_id,collect_query FROM collected WHERE user_cookie = ?';
+    connection.query(sql, [cookie] ,(err,result) => {
+        if (err) {
+            console.error('获取搜索记录时出现错误:', err);
+            res.status(500).send('获取搜索记录时出现错误');
+            return;
+        }
+        console.log('已获取搜索记录');
+        console.log(result);
+        res.status(200).send(result);
+    })
+})
+
+app.post('/api/getCollectionByFavorite',(req,res) => {
+    let { query } = req.body;
+    const sql = 'SELECT c.collection_id, c.collect_query\n' +
+        'FROM collected c\n' +
+        'JOIN Favorites_Collections fc ON c.collection_id = fc.collection_id\n' +
+        `WHERE fc.favorite_id = ${query};`;
+    connection.query(sql ,(err,result) => {
+        if (err) {
+            console.error('获取搜索记录时出现错误:', err);
+            res.status(500).send('获取搜索记录时出现错误');
+            return;
+        }
+        console.log('已获取搜索记录');
+        console.log(result);
+        res.status(200).send(result);
+    })
+})
+app.post('/api/getFavorites',(req,res) => {
+    let cookie = req.cookies.userId;
+    //查询未收藏
+    const sql = 'SELECT favorite_id,favorite_name FROM favorites WHERE user_cookie = ?';
+    connection.query(sql, [cookie] ,(err,result) => {
+        if (err) {
+            console.error('获取搜索记录时出现错误:', err);
+            res.status(500).send('获取搜索记录时出现错误');
+            return;
+        }
+        console.log('已获取搜索记录');
+        console.log(result);
+        res.status(200).send(result);
+    })
+})
+
 app.post('/api/delete', (req, res) => {
     var cookie = req.cookies.userId;
     const { query } = req.body;
@@ -85,6 +134,25 @@ app.post('/api/delete', (req, res) => {
         res.status(200).send('已删除');
     });
 });
+
+app.post('/api/deleteCollect', (req, res) => {
+    var cookie = req.cookies.userId;
+    const { query } = req.body;
+    // 执行数据库查询来保存搜索记录
+    const sql = 'DELETE FROM collected WHERE collect_query = ? and user_cookie = ?';
+    connection.query(sql, [query,cookie] , (err, result) => {
+
+        if (err) {
+            console.error('删除时出现错误:', err);
+            res.status(500).send('删除时出现错误');
+            return;
+        }
+        console.log('搜索记录已删除');
+        res.status(200).send('已删除');
+    });
+});
+
+
 
 app.post('/api/delete_all', (req, res) => {
     var cookie = req.cookies.userId;
@@ -105,9 +173,12 @@ app.post('/api/delete_all', (req, res) => {
 
 app.post('/api/collect', (req, res) => {
     const { query } = req.body;
+    console.log(query)
+    let cookie = req.cookies.userId;
+    console.log(cookie);
     // 执行数据库查询来保存搜索记录
-    const sql = 'UPDATE search_history set is_collected = not is_collected WHERE search_query = ? ';
-    connection.query(sql, [query], (err, result) => {
+    const sql = 'INSERT INTO collected (collect_query,collect_time,user_cookie) values(?,NOW(),?)';
+    connection.query(sql, [query,cookie], (err, result) => {
         if (err) {
             console.error('收藏时出现错误:', err);
             res.status(500).send('收藏时出现错误');

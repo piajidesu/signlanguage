@@ -1,5 +1,7 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 
+
+
 const routes = [
   {
     path: "/",
@@ -24,6 +26,11 @@ const routes = [
     path: "/license",
     name: "license",
     component: () => import("../views/License.vue"),
+  },
+  {
+    path: "/collect",
+    name: "collect",
+    component: () => import("../views/Collect.vue"),
   },
 ];
 
